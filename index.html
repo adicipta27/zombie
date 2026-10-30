@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Desa Penyintas: Kota Benteng Nusantara</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="game-container">
+    
+    <!-- AUTH SCREEN (LOGIN & DAFTAR) -->
+    <div id="authScreen" class="auth-container">
+        <h2>🛡️ Desa Penyintas Nusantara</h2>
+        <p style="font-size: 9px; color: #9ca3af;">Masuk atau Daftar akun untuk menyinkronkan data desa & Co-op Aliansi.</p>
+        
+        <input type="email" id="authEmail" class="input-field" placeholder="Email Ketua Desa...">
+        <input type="password" id="authPassword" class="input-field" placeholder="Kata Sandi...">
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 4px;">
+            <button class="btn-action" style="background:#0284c7;" onclick="handleLogin()">Masuk (Login)</button>
+            <button class="btn-action" style="background:#047857;" onclick="handleRegister()">Daftar Baru</button>
+        </div>
+        <div id="authError" style="font-size: 8px; color: #f87171; margin-top: 4px;"></div>
+    </div>
+
+    <!-- MAIN GAME INTERFACE (TERSEMBUNYI SEBELUM LOGIN) -->
+    <div id="gameMainUI" style="display: none; flex-direction: column; gap: 8px; height: 100%;">
+        
+        <!-- Top HUD Dashboard -->
+        <div class="hud-grid">
+            <div class="hud-card">
+                <div class="hud-label">Pangan (Beras)</div>
+                <div class="hud-value" id="foodText">🍚 100 kg</div>
+                <div style="font-size: 7px; color: #34d399;" id="foodRateText">(+0/30s)</div>
+            </div>
+            <div class="hud-card">
+                <div class="hud-label">Warga / Rumah</div>
+                <div class="hud-value" id="popText">👥 5 / 5</div>
+                <div style="font-size: 7px; color: #fbbf24;" id="freePopText">Bebas: 5</div>
+            </div>
+            <div class="hud-card">
+                <div class="hud-label">Benteng Desa</div>
+                <div class="hud-value" id="wallText">🛡️ 100%</div>
+                <div style="font-size: 7px; color: #ef4444;" id="zombieTimerText">Zombie: 120s</div>
+            </div>
+        </div>
+
+        <!-- Secondary HUD Bar -->
+        <div class="sub-hud">
+            <div>🪵 Kayu: <b style="color:#fbbf24;" id="woodText">15 Unit</b></div>
+            <div>🏆 Status: <b style="color:#38bdf8;" id="tierText">Tier 1</b></div>
+            <div><button onclick="handleLogout()" style="background:#b91c1c; border:none; color:#fff; font-size:7px; padding:2px 6px; border-radius:4px; cursor:pointer;">Keluar</button></div>
+        </div>
+
+        <!-- Navigasi 5 Tab (Termasuk Co-op & Chat) -->
+        <div class="nav-tabs">
+            <div class="tab-btn active" onclick="switchTab('village', this)">Desa</div>
+            <div class="tab-btn" onclick="switchTab('expedition', this)">Ekspedisi</div>
+            <div class="tab-btn" onclick="switchTab('missions', this)">Misi</div>
+            <div class="tab-btn" onclick="switchTab('upgrade', this)">Bangun</div>
+            <div class="tab-btn" onclick="switchTab('coop', this)">Co-op & Chat</div>
+        </div>
+
+        <!-- Panel Konten Utama -->
+        <div class="main-panel" id="mainPanel"></div>
+
+        <!-- Terminal Log Aktivitas -->
+        <div class="terminal-log" id="terminalLog">
+            [SISTEM] Selamat datang, Ketua Desa. Silakan sinkronkan alokasi dan bangun aliansi!
+        </div>
+    </div>
+
+</div>
+
+<!-- Hubungkan Skrip Utama (Modular JS) -->
+<script type="module" src="game-logic.js"></script>
+</body>
+</html>
