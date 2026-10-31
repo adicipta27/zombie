@@ -1,4 +1,4 @@
-// game-logic.js - Mesin Utama Simulasi Desa (Full Features + War Map Dual Cooldown, Sector Decay & Enlarged UI Font)
+// game-logic.js - Mesin Utama Simulasi Desa (Full Features + 1 Wood = 1% Repair & Alliance Withdraw)
 import { 
     auth, 
     db, 
@@ -59,7 +59,6 @@ let currentUserEmail = "";
 let userUid = "";
 let activeEventTimerInterval = null;
 
-// Sistem Batas Kapasitas Gudang (Storage Cap) berdasarkan Level Rumah & Benteng[cite: 2]
 function getStorageCap() {
     return (game.houseLevel * 300) + (game.wallLevel * 200) + 200;
 }
@@ -137,7 +136,6 @@ function monitorOnlinePlayers() {
     });
 }
 
-// Sinkronisasi War Map dengan Properti Pertahanan (Health) & Dual Cooldown
 function syncWarMapData() {
     const warMapRef = ref(db, 'warMapNodes');
     onValue(warMapRef, (snapshot) => {
@@ -376,7 +374,6 @@ function formatTimeHMS(totalSeconds) {
     return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 }
 
-// 20 Random Event Pop-Up Interaktif
 function triggerRandomEvent() {
     triggerFullGlitchAndSound('event_alert');
     const events = [
@@ -754,7 +751,6 @@ function renderPanel() {
 
             let badgeText = isUnlocked ? `Def: ${node.health || 100}%` : (isLockedByPrev ? `Jalur Terkunci` : `Lv.${node.level} (${progressPct}%)`);
 
-            // [PERBAIKAN FONT UKURAN BESAR AGAR MUDAH DIBACA]
             nodesHtml += `
                 <div style="position: absolute; top: ${node.y}%; left: ${node.x}%; transform: translate(-50%, -50%); text-align: center; cursor: pointer;" onclick="openWarMapNodeModal(${node.id}); playSFX('click');">
                     <div style="width: 34px; height: 34px; background: ${statusColor}; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 15px; border: 2px solid var(--border-color); box-shadow: 0 0 12px rgba(0,0,0,0.95); font-weight:bold;">📍</div>
@@ -829,13 +825,14 @@ function renderPanel() {
                 </button>
             </div>
         `;
+        // [UPDATE BIAYA BENTENG: 1 KAYU = 1%]
         panel.innerHTML += `
             <div class="card-box">
                 <div class="card-header"><h5>🔨 Perbaiki Benteng</h5></div>
-                <div class="card-desc">Memulihkan +25% Ketahanan (Biaya: 🪵 5 Kayu per tahap)[cite: 2].</div>
+                <div class="card-desc">Rasio Perbaikan: <b>1 Kayu = 1% Pertahanan Benteng</b>. Masukkan persentase pemulihan yang diinginkan.</div>
                 <div class="worker-controls" style="margin-top:8px;">
-                    <input type="number" id="inputRepairAmount" class="input-amount" value="1" min="1" style="width:60px;">
-                    <button class="btn-action" style="border-color:var(--accent-gold); color:var(--accent-gold); width:auto;" onclick="repairWallCustom(); playSFX('click');">Perbaiki</button>
+                    <input type="number" id="inputRepairAmount" class="input-amount" value="10" min="1" max="100" style="width:70px;">
+                    <button class="btn-action" style="border-color:var(--accent-gold); color:var(--accent-gold); width:auto;" onclick="repairWallCustom(); playSFX('click');">Perbaiki Benteng</button>
                 </div>
             </div>
         `;
@@ -882,18 +879,20 @@ function renderPanel() {
                 </div>
             `;
         }
+        // [KONTROL MULTI-FUNGSI LOGISTIK ALIANSI: DONASI & PINJAM/TARIK LOGISTIK]
         panel.innerHTML += `
             <div class="card-box">
-                <div class="card-header"><h5>📦 Donasi Logistik ke Aliansi</h5></div>
-                <div style="display:flex; gap:6px; margin-top:8px; align-items:center;">
+                <div class="card-header"><h5>📦 Kelola Logistik Aliansi (Donasi & Pinjam)</h5></div>
+                <div style="display:flex; gap:6px; margin-top:8px; align-items:center; flex-wrap:wrap;">
                     <select id="donateType" class="input-amount" style="width:110px;">
                         <option value="food">Beras (kg)</option>
                         <option value="wood">Kayu (unit)</option>
                         <option value="metal">Logam</option>
                         <option value="chemicals">Kimia</option>
                     </select>
-                    <input type="number" id="donateQty" class="input-amount" value="20" min="5" style="width:70px;">
+                    <input type="number" id="donateQty" class="input-amount" value="20" min="1" style="width:70px;">
                     <button class="btn-action" style="border-color:var(--accent-green); color:var(--accent-green); width:auto;" onclick="donateToAlliance(); playSFX('click');">Donasi</button>
+                    <button class="btn-action" style="border-color:var(--accent-gold); color:var(--accent-gold); width:auto;" onclick="withdrawFromAlliance(); playSFX('click');">Tarik Logistik</button>
                 </div>
             </div>
             <div class="card-box">
@@ -1136,19 +1135,29 @@ window.upgradeWall = function() {
     } else log("Gagal upgrade benteng (Cek Kayu / Logam).");
 }
 
+// [PEMBARUAN PERBAIKAN BENTENG: 1 KAYU = 1%]
 window.repairWallCustom = function() {
-    let qty = parseInt(document.getElementById('inputRepairAmount').value) || 1;
-    let totalCost = qty * 5;
-    if (game.wood >= totalCost) {
-        if (game.wallHealth >= 100) return log("Benteng sudah 100% utuh.");
-        game.wood -= totalCost;
-        game.wallHealth = Math.min(100, game.wallHealth + (qty * 25));
+    let requestedPercent = parseInt(document.getElementById('inputRepairAmount').value) || 1;
+    if (requestedPercent <= 0) return log("❌ Jumlah perbaikan minimal 1%.");
+
+    if (game.wallHealth >= 100) return log(" Benteng sudah 100% utuh.");
+
+    let neededPercent = 100 - game.wallHealth;
+    let actualPercentToRepair = Math.min(requestedPercent, neededPercent);
+    let totalWoodCost = actualPercentToRepair; // 1 Kayu = 1%
+
+    if (game.wood >= totalWoodCost) {
+        game.wood -= totalWoodCost;
+        game.wallHealth += actualPercentToRepair;
         if (!game.stats) game.stats = { totalExpeditions: 0, totalZombiesKilled: 0, totalRepairs: 0 };
         game.stats.totalRepairs++;
-        log(`🔨 [PERBAIKAN] Memperbaiki benteng sebanyak ${qty} tahap (-🪵 ${totalCost} Kayu)[cite: 2].`);
-        updateUI(); renderPanel();
+        log(`🔨 [PERBAIKAN] Memperbaiki benteng +${actualPercentToRepair}% (-🪵 ${totalWoodCost} Kayu). Sisa Benteng: ${game.wallHealth}%.`);
+        updateUI(); 
+        renderPanel();
         saveGameToCloud();
-    } else log(`Kayu tidak cukup (Butuh 🪵 ${totalCost})[cite: 2].`);
+    } else {
+        log(`❌ Kayu tidak cukup! Butuh 🪵 ${totalWoodCost} Kayu untuk memulihkan ${actualPercentToRepair}%.`);
+    }
 }
 
 function syncAllianceStorage() {
@@ -1163,14 +1172,16 @@ function syncAllianceStorage() {
     });
 }
 
+// DONASI LOGISTIK KE ALIANSI
 window.donateToAlliance = function() {
     let type = document.getElementById('donateType').value;
     let qty = parseInt(document.getElementById('donateQty').value) || 20;
 
+    if (qty <= 0) return log(`❌ Jumlah donasi tidak valid.`);
     if (game[type] < qty) return log(`❌ Stok ${type} pribadi tidak cukup untuk didonasikan!`);
 
     game[type] -= qty;
-    allianceStorage[type] += qty;
+    allianceStorage[type] = (allianceStorage[type] || 0) + qty;
     set(ref(db, 'allianceStorage'), allianceStorage);
 
     let chatRef = ref(db, 'allianceChat');
@@ -1184,6 +1195,47 @@ window.donateToAlliance = function() {
     renderPanel();
     saveGameToCloud();
     log(`📦 Berhasil mendonasikan ${qty} ${type} ke Aliansi.`);
+}
+
+// [FITUR BARU: AMBIL / TARIK LOGISTIK DARI ALIANSI]
+window.withdrawFromAlliance = function() {
+    let type = document.getElementById('donateType').value;
+    let qty = parseInt(document.getElementById('donateQty').value) || 20;
+
+    if (qty <= 0) return log(`❌ Jumlah penarikan tidak valid.`);
+    let currentAllianceStock = allianceStorage[type] || 0;
+
+    if (currentAllianceStock < qty) {
+        return log(`❌ Stok ${type} di Gudang Aliansi kurang! (Tersedia: ${currentAllianceStock})`);
+    }
+
+    let cap = getStorageCap();
+    let currentPersonalStock = game[type] || 0;
+
+    if (type === 'food' || type === 'wood') {
+        if (currentPersonalStock >= cap) {
+            return log(`❌ Lumbung pribadi Anda sudah penuh (${cap} unit)! Upgrade Rumah untuk memperluas lumbung.`);
+        }
+        let spaceAvailable = cap - currentPersonalStock;
+        qty = Math.min(qty, spaceAvailable);
+    }
+
+    allianceStorage[type] -= qty;
+    game[type] = (game[type] || 0) + qty;
+
+    set(ref(db, 'allianceStorage'), allianceStorage);
+
+    let chatRef = ref(db, 'allianceChat');
+    push(chatRef, {
+        sender: currentUserEmail.split('@')[0],
+        message: `🚚 [TARIK LOGISTIK] Meminjam ${qty} ${type} dari Lumbung Aliansi.`,
+        time: Date.now()
+    });
+
+    updateUI();
+    renderPanel();
+    saveGameToCloud();
+    log(`🚚 Berhasil mengambil ${qty} ${type} dari Lumbung Aliansi.`);
 }
 
 window.sendAllianceChat = function() {
