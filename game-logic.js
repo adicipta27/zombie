@@ -1,4 +1,4 @@
-// game-logic.js - Mesin Utama Simulasi Desa (Full Features: Pause on Offline, Gotong-Royong, Storage Cap, Glitch, Profil Akun & Statistik)
+// game-logic.js - Mesin Utama Simulasi Desa (Full Features + War Map Dual Cooldown & Sector Decay)
 import { 
     auth, 
     db, 
@@ -66,7 +66,7 @@ function getStorageCap() {
 
 function saveGameToCloud() {
     if (!userUid) return;
-    game.lastLogoutTime = Date.now(); // Simpan waktu aktif terakhir ke cloud
+    game.lastLogoutTime = Date.now();
     const gameRef = ref(db, `users/${userUid}/gameState`);
     set(gameRef, game).catch((error) => {
         console.error("Gagal menyimpan data ke cloud:", error);
@@ -95,7 +95,6 @@ function loadGameFromCloud(uid) {
                 game.currentMissionIndex = 0;
             }
 
-            // [FITUR PAUSE ON OFFLINE] Cek durasi offline tanpa mengubah sedikit pun data desa
             let now = Date.now();
             if (game.lastLogoutTime) {
                 let offlineDurationSecs = Math.floor((now - game.lastLogoutTime) / 1000);
@@ -138,6 +137,7 @@ function monitorOnlinePlayers() {
     });
 }
 
+// Sinkronisasi War Map dengan Properti Pertahanan (Health) & Dual Cooldown
 function syncWarMapData() {
     const warMapRef = ref(db, 'warMapNodes');
     onValue(warMapRef, (snapshot) => {
@@ -151,19 +151,28 @@ function syncWarMapData() {
                         ...cloudNode,
                         level: cloudNode.level !== undefined ? cloudNode.level : defaultNode.level,
                         targetPoints: cloudNode.targetPoints !== undefined ? cloudNode.targetPoints : defaultNode.targetPoints,
-                        currentPoints: cloudNode.currentPoints !== undefined ? cloudNode.currentPoints : defaultNode.currentPoints
+                        currentPoints: cloudNode.currentPoints !== undefined ? cloudNode.currentPoints : defaultNode.currentPoints,
+                        health: cloudNode.health !== undefined ? cloudNode.health : 100 // Durabilitas Sektor
                     };
                 }
                 return defaultNode;
             });
 
+            // Mekanisme Degradasi & Zombie Retake di Cloud
             let hasChanges = false;
             warMapNodes.forEach(node => {
-                if (node.status === 'unlocked' && Math.random() < 0.05) {
-                    node.status = 'locked';
-                    node.currentPoints = 0; 
-                    hasChanges = true;
-                    log(`⚠️ [DEGRADASI ZONA] Gerombolan zombie menyusup dan merebut kembali Sektor ${node.name}! Status kembali terkunci.`);
+                if (node.status === 'unlocked') {
+                    if (node.health === undefined) node.health = 100;
+                    let decay = node.level * 4; // Laju degradasi berdasarkan level
+                    node.health = Math.max(0, node.health - decay);
+
+                    if (node.health <= 0) {
+                        node.status = 'locked';
+                        node.currentPoints = 0;
+                        node.health = 100;
+                        hasChanges = true;
+                        log(`⚠️ [ZOMBIE RETAKE] Pertahanan Sektor ${node.name} hancur (0%)! Zombie merebut kembali wilayah ini.`);
+                    }
                 }
             });
             if (hasChanges) {
@@ -213,7 +222,6 @@ window.handleLogout = async function() {
     await signOut(auth);
 }
 
-// Fitur Reset Total dengan Kode Akses maryadi27
 window.handleResetTotal = function() {
     if (!userUid) return;
     let passInput = document.getElementById('resetPasswordInput');
@@ -369,7 +377,7 @@ function formatTimeHMS(totalSeconds) {
     return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 }
 
-// 20 Random Event Pop-Up Interaktif dengan Custom HTML Modal & Countdown 15s
+// 20 Random Event Pop-Up Interaktif
 function triggerRandomEvent() {
     triggerFullGlitchAndSound('event_alert');
     const events = [
@@ -610,7 +618,7 @@ function triggerRandomEvent() {
         timeLeft--;
         timerEl.innerText = `⏱️ ${timeLeft}s`;
         if (timeLeft <= 0) {
-            closeEventModal(2); // Waktu habis otomatis memilih Opsi B (Abaikan)
+            closeEventModal(2);
         }
     }, 1000);
 }
@@ -623,7 +631,6 @@ function renderPanel() {
     let storageCap = getStorageCap();
     let username = currentUserEmail ? currentUserEmail.split('@')[0] : "Komandan";
 
-    // Header Tambahan: Card Profil & Statistik Personal Komandan
     let profileBoxHtml = `
         <div class="card-box" style="border-color: var(--accent-gold); margin-bottom: 12px; background: rgba(12, 13, 15, 0.9);">
             <div class="card-header" style="border-bottom: 1px solid var(--border-color); padding-bottom: 4px; margin-bottom: 6px;">
@@ -724,17 +731,31 @@ function renderPanel() {
         `;
     } else if (currentTab === 'warmap') {
         panel.innerHTML = profileBoxHtml;
-        panel.innerHTML += `<div class="section-title">🗺️ Peta Eksplorasi Bersama (Farmable Node & Real-time Cooldown)</div>`;
+        panel.innerHTML += `<div class="section-title">🗺️ Peta Sektor Aliansi (Dual Cooldown & Sektor Durabilitas)</div>`;
         let nodesHtml = '';
         let now = Date.now();
-        warMapNodes.forEach(node => {
+
+        warMapNodes.forEach((node, idx) => {
+            // Cek Syarat Jalur Akses Prasyarat (Connected Route Requirement)
+            let isLockedByPrev = false;
+            if (idx > 0) {
+                let prevNode = warMapNodes[idx - 1];
+                if (prevNode && prevNode.status !== 'unlocked') {
+                    isLockedByPrev = true;
+                }
+            }
+
             let isUnlocked = node.status === 'unlocked';
-            let statusColor = isUnlocked ? 'var(--accent-green)' : 'var(--accent-red)';
-            let progressPct = isUnlocked ? 100 : Math.min(100, Math.floor((node.currentPoints / node.targetPoints) * 100));
-            let cooldownEnd = (game.nodeCooldowns && game.nodeCooldowns[node.id]) ? game.nodeCooldowns[node.id] : 0;
+            let statusColor = isUnlocked ? 'var(--accent-green)' : (isLockedByPrev ? 'var(--border-color)' : 'var(--accent-red)');
+            let progressPct = isUnlocked ? node.health || 100 : Math.min(100, Math.floor((node.currentPoints / node.targetPoints) * 100));
+            
+            // Dual Cooldown Check
+            let cooldowns = game.nodeCooldowns || {};
+            let cooldownEnd = cooldowns[node.id] || 0;
             let isOnCooldown = now < cooldownEnd;
-            let badgeText = isUnlocked ? `Dikuasai (Farm)` : `Lv.${node.level} (${progressPct}%)`;
-            if (isOnCooldown) statusColor = 'var(--accent-gold)'; 
+            if (isOnCooldown) statusColor = 'var(--accent-gold)';
+
+            let badgeText = isUnlocked ? `Def: ${node.health || 100}%` : (isLockedByPrev ? `Jalur Terkunci` : `Lv.${node.level} (${progressPct}%)`);
 
             nodesHtml += `
                 <div style="position: absolute; top: ${node.y}%; left: ${node.x}%; transform: translate(-50%, -50%); text-align: center; cursor: pointer;" onclick="openWarMapNodeModal(${node.id}); playSFX('click');">
@@ -744,6 +765,7 @@ function renderPanel() {
                 </div>
             `;
         });
+
         let activeMissionBox = '';
         if (game.warMapActiveMission !== null) {
             if (typeof game.warMapTimer !== 'number' || isNaN(game.warMapTimer)) game.warMapTimer = 300;
@@ -752,7 +774,7 @@ function renderPanel() {
             activeMissionBox = `
                 <div class="card-box" style="border-color: var(--accent-blue);">
                     <div class="card-header"><h5>⏳ Operasi Taktis Sektor: ${activeNode ? activeNode.name : ''}</h5></div>
-                    <div class="card-desc">Tim sedang berjuang di lapangan... Sisa Waktu: <b id="warMapCountdownDisplay" style="color:var(--accent-blue); font-size:11px;">${timeFormatted}</b></div>
+                    <div class="card-desc">Tim sedang bertugas di lapangan... Sisa Waktu: <b id="warMapCountdownDisplay" style="color:var(--accent-blue); font-size:11px;">${timeFormatted}</b></div>
                 </div>
             `;
         }
@@ -762,7 +784,7 @@ function renderPanel() {
                 <div style="position: absolute; inset: 0; background: rgba(12, 13, 15, 0.75);"></div>
                 ${nodesHtml}
             </div>
-            <div class="card-desc" style="text-align: center;">Klik pin titik wilayah untuk berkontribusi atau memanen ulang. Cooldown pribadi 1 Jam per titik.</div>
+            <div class="card-desc" style="text-align: center;"><b>Dual Cooldown:</b> Penaklukan = 3 Menit | Farming = 15 Menit. Jaga durabilitas sektor agar tidak direbut kembali zombie!</div>
         `;
     } else if (currentTab === 'missions') {
         panel.innerHTML = profileBoxHtml;
@@ -899,24 +921,35 @@ function getAllianceMissionProgress(reqType) {
     return 0;
 }
 
+// Buka Modal Node War Map dengan Pengecekan Jalur & Dual Cooldown
 window.openWarMapNodeModal = function(nodeId) {
-    let node = warMapNodes.find(n => n.id === nodeId);
+    let nodeIndex = warMapNodes.findIndex(n => n.id === nodeId);
+    let node = warMapNodes[nodeIndex];
     if (!node) return;
+
     if (game.tier < 2) return log("❌ Akses War Map membutuhkan minimal Tier 2 (Pemukiman Berdikari)!");
     if (game.warMapActiveMission !== null) return log("❌ Tim Anda sedang dalam misi penjelajahan lain di War Map!");
+
+    // Cek Jalur Akses Prasyarat
+    if (nodeIndex > 0) {
+        let prevNode = warMapNodes[nodeIndex - 1];
+        if (prevNode && prevNode.status !== 'unlocked') {
+            return log(`❌ Jalur terkunci! Anda harus menguasai ${prevNode.name} terlebih dahulu.`);
+        }
+    }
 
     if (!game.nodeCooldowns) game.nodeCooldowns = {};
     let cooldownEnd = game.nodeCooldowns[nodeId] || 0;
     let now = Date.now();
     if (now < cooldownEnd) {
         let remainingSecs = Math.ceil((cooldownEnd - now) / 1000);
-        return log(`⏳ Sektor ${node.name} masih dalam Cooldown pribadi! Sisa waktu: ${formatTimeHMS(remainingSecs)}`);
+        return log(`⏳ Sektor ${node.name} masih dalam Cooldown! Sisa waktu: ${formatTimeHMS(remainingSecs)}`);
     }
 
     let isUnlocked = node.status === 'unlocked';
     let actionDesc = isUnlocked 
-        ? `[ZONA FARMING: ${node.name}]\n⭐ Sektor ini dikuasai (bisa dipanen rutin).\n🎁 Hadiah Panen: ${node.rewardQty} ${node.rewardType.toUpperCase()}\n\nKirim tim panen (Durasi 5 Menit)?`
-        : `[ZONA PENAKLUKAN: ${node.name}]\n⭐ Level Sektor: ${node.level}\n🎯 Target Poin: ${node.currentPoints} / ${node.targetPoints} Poin\n🎁 Hadiah Utama: ${node.rewardQty} ${node.rewardType.toUpperCase()}\n\nKirim tim gotong-royong (Durasi 5 Menit)?`;
+        ? `[ZONA FARMING & PATROLI: ${node.name}]\n🛡️ Durabilitas Sektor: ${node.health || 100}%\n🎁 Hadiah Panen: ${node.rewardQty} ${node.rewardType.toUpperCase()}\n\nKirim tim patroli & farming (Cooldown 15 Menit)?`
+        : `[ZONA PENAKLUKAN: ${node.name}]\n⭐ Level Sektor: ${node.level}\n🎯 Target Poin: ${node.currentPoints} / ${node.targetPoints} Poin\n\nKirim tim penaklukan (Cooldown 3 Menit)?`;
 
     if (confirm(actionDesc)) {
         startWarMapExpedition(node.id);
@@ -925,8 +958,10 @@ window.openWarMapNodeModal = function(nodeId) {
 
 function startWarMapExpedition(nodeId) {
     game.warMapActiveMission = nodeId;
-    game.warMapTimer = 300; 
-    log(`🚀 [WAR MAP] Tim ekspedisi dikirim ke ${warMapNodes.find(n=>n.id===nodeId).name}. Estimasi kembali 5 menit.`);
+    let node = warMapNodes.find(n => n.id === nodeId);
+    // Durasi misi: 3 menit untuk Locked, 5 menit untuk Unlocked (atau sesuaikan)
+    game.warMapTimer = node.status === 'unlocked' ? 300 : 180; 
+    log(`🚀 [WAR MAP] Tim ekspedisi dikirim ke ${node.name}.`);
     saveGameToCloud();
     renderPanel();
 }
@@ -938,15 +973,21 @@ function finishWarMapExpedition() {
     game.warMapTimer = 0;
 
     if (!game.nodeCooldowns) game.nodeCooldowns = {};
-    game.nodeCooldowns[nodeId] = Date.now() + (3600 * 1000);
+    
+    // PENERAPAN DUAL COOLDOWN PRIBADI: 3 Menit (180s) jika Locked, 15 Menit (900s) jika Unlocked
+    let cooldownDurationMs = (node.status === 'unlocked') ? (15 * 60 * 1000) : (3 * 60 * 1000);
+    game.nodeCooldowns[nodeId] = Date.now() + cooldownDurationMs;
 
-    let successChance = 0.65 + (game.wallLevel * 0.05) + (game.workers.wall * 0.03);
+    let successChance = 0.70 + (game.wallLevel * 0.05) + (game.workers.wall * 0.03);
     let isSuccess = Math.random() < successChance;
     let cap = getStorageCap();
 
     if (isSuccess) {
         if (node.status === 'unlocked') {
-            log(`🌾 [FARMING SUKSES] Berhasil memanen ${node.name}! +${node.rewardQty} ${node.rewardType.toUpperCase()}`);
+            // Sektor Unlocked: Dapat Resource + Repair Durabilitas Sektor (+15%)
+            node.health = Math.min(100, (node.health || 100) + 15);
+            log(`🌾 [FARMING & PATROLI SUKSES] Memanen ${node.name}! +${node.rewardQty} ${node.rewardType.toUpperCase()}. Durabilitas Sektor pulih ke ${node.health}%.`);
+            
             if(node.rewardType === 'food' || node.rewardType === 'wood') {
                 game[node.rewardType] = Math.min(cap, (game[node.rewardType] || 0) + node.rewardQty);
             } else {
@@ -954,14 +995,17 @@ function finishWarMapExpedition() {
             }
             allianceStorage[node.rewardType] = (allianceStorage[node.rewardType] || 0) + Math.floor(node.rewardQty / 2);
             set(ref(db, 'allianceStorage'), allianceStorage);
+            set(ref(db, 'warMapNodes'), warMapNodes);
         } else {
-            let earnedPoints = node.level * 25;
+            // Sektor Locked: Tambah Poin Penaklukan
+            let earnedPoints = node.level * 30;
             node.currentPoints = Math.min(node.targetPoints, node.currentPoints + earnedPoints);
             log(`🏆 [WAR MAP SUKSES] Tim mencetak +${earnedPoints} Poin Kontribusi di ${node.name}! (${node.currentPoints}/${node.targetPoints})`);
 
             if (node.currentPoints >= node.targetPoints) {
                 node.status = 'unlocked';
-                log(`🎉 [SEKTOR DIKUASAI] Titik ${node.name} resmi dikuasai penuh oleh aliansi! Kini bisa dipanen berkala.`);
+                node.health = 100; // Reset ke 100% penuh saat berhasil dikuasai
+                log(`🎉 [SEKTOR DIKUASAI] Titik ${node.name} resmi dikuasai penuh! Jalur farming terbuka.`);
                 if(node.rewardType === 'food' || node.rewardType === 'wood') {
                     game[node.rewardType] = Math.min(cap, (game[node.rewardType] || 0) + node.rewardQty);
                 } else {
@@ -974,13 +1018,8 @@ function finishWarMapExpedition() {
         }
     } else {
         log(`💀 [WAR MAP GAGAL] Tim dihadang gerombolan kuat di ${node.name} dan terpaksa mundur!`);
-        let damage = Math.floor(Math.random() * 20) + 10;
+        let damage = Math.floor(Math.random() * 15) + 10;
         game.wallHealth = Math.max(0, game.wallHealth - damage);
-        if (allianceStorage.food >= 15) {
-            allianceStorage.food -= 15;
-            log(`🛡️ [RISIKO BERSAMA] Lumbung Aliansi terpaksa mengorbankan 15kg beras untuk evakuasi.`);
-            set(ref(db, 'allianceStorage'), allianceStorage);
-        }
         log(`🚨 [SERANGAN BALIK] Kegagalan misi memicu serangan zombie! Benteng rusak -${damage}%!`);
     }
 
