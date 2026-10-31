@@ -791,7 +791,7 @@ function renderPanel() {
                 <div class="card-box">
                     <div class="card-header">
                         <h5>${m.title}</h5>
-                        <span style="color:var(--text-muted);">Misi ${game.currentMissionIndex + 1} / 50</span>
+                        <span style="color:var(--text-muted);">Misi ${game.currentMissionIndex + 1} / ${governmentMissions.length}</span>
                     </div>
                     <div class="card-desc">${m.desc}</div>
                     <div style="font-size:11px; color:var(--accent-gold); margin:6px 0;">Progres: <b>${currentVal} / ${m.reqValue}</b></div>
@@ -869,7 +869,7 @@ function renderPanel() {
                 <div class="card-box" style="border-color: var(--accent-gold);">
                     <div class="card-header">
                         <h5>🏆 ${am.title}</h5>
-                        <span style="color: var(--accent-gold);">Misi Aliansi ${game.currentAllianceMissionIndex + 1} / 20</span>
+                        <span style="color: var(--accent-gold);">Misi Aliansi ${game.currentAllianceMissionIndex + 1} / ${allianceMissions.length}</span>
                     </div>
                     <div class="card-desc">${am.desc}</div>
                     <div style="font-size:11px; color:var(--accent-gold); margin:6px 0;">Progres: <b>${currentAllianceVal} / ${am.reqValue}</b></div>
