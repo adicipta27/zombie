@@ -8,7 +8,9 @@
         :root {
             --bg-color: #0c0d0f;
             --surface-color: #141619;
+            --surface-card: #090a0c;
             --border-color: #26292e;
+            --border-accent: #4b5563;
             --text-main: #e2e8f0;
             --text-muted: #94a3b8;
             --accent-gold: #facc15;
@@ -25,7 +27,7 @@
 
         body {
             background-color: var(--bg-color);
-            background-image: linear-gradient(rgba(12, 13, 15, 0.90), rgba(12, 13, 15, 0.90)), url('https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1600&q=80');
+            background-image: linear-gradient(rgba(12, 13, 15, 0.92), rgba(12, 13, 15, 0.92)), url('https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1600&q=80');
             background-size: cover;
             background-position: center;
             background-attachment: fixed;
@@ -36,10 +38,11 @@
         }
 
         .wiki-container {
-            max-width: 900px;
+            max-width: 920px;
             margin: 0 auto;
             background-color: var(--surface-color);
-            border: 1px solid var(--border-color);
+            border: 2px solid var(--border-accent);
+            box-shadow: 0 0 35px rgba(0, 0, 0, 0.95);
             padding: 32px;
         }
 
@@ -49,12 +52,12 @@
             color: var(--accent-gold);
             border-bottom: 2px solid var(--border-color);
             padding-bottom: 12px;
-            margin-bottom: 24px;
+            margin-bottom: 20px;
             letter-spacing: 1px;
         }
 
         h2 {
-            font-size: 15px;
+            font-size: 14px;
             text-transform: uppercase;
             color: var(--accent-blue);
             border-bottom: 1px solid var(--border-color);
@@ -64,21 +67,13 @@
             letter-spacing: 0.5px;
         }
 
-        h3 {
-            font-size: 13px;
-            color: #f3f4f6;
-            margin-top: 16px;
-            margin-bottom: 6px;
-            text-transform: uppercase;
-        }
-
         p, li {
             font-size: 12px;
             color: var(--text-muted);
             margin-bottom: 10px;
         }
 
-        ul {
+        ul, ol {
             padding-left: 20px;
             margin-bottom: 14px;
         }
@@ -92,7 +87,7 @@
 
         th, td {
             border: 1px solid var(--border-color);
-            padding: 8px 12px;
+            padding: 10px 12px;
             text-align: left;
         }
 
@@ -107,28 +102,48 @@
             color: var(--text-muted);
         }
 
-        .highlight {
+        .code-box {
+            background: #060708;
+            padding: 12px;
+            border: 1px solid var(--border-color);
             color: var(--accent-gold);
             font-weight: bold;
+            font-size: 12px;
+            margin: 10px 0;
+        }
+
+        .alert-card {
+            background: var(--surface-card);
+            border-left: 3px solid var(--accent-red);
+            padding: 12px 16px;
+            margin: 12px 0;
+        }
+
+        .info-card {
+            background: var(--surface-card);
+            border-left: 3px solid var(--accent-blue);
+            padding: 12px 16px;
+            margin: 12px 0;
         }
 
         .back-btn {
             display: inline-block;
             background: transparent;
             color: var(--text-main);
-            border: 1px solid var(--border-color);
-            padding: 8px 16px;
+            border: 1px solid var(--border-accent);
+            padding: 10px 18px;
             font-family: inherit;
             font-size: 11px;
+            font-weight: bold;
             text-transform: uppercase;
             cursor: pointer;
-            margin-bottom: 20px;
+            margin-bottom: 24px;
             transition: all 0.2s;
         }
 
         .back-btn:hover {
-            border-color: var(--accent-blue);
-            color: var(--accent-blue);
+            border-color: var(--accent-gold);
+            color: var(--accent-gold);
             background: #0c0d0f;
         }
     </style>
@@ -138,104 +153,118 @@
     <div class="wiki-container">
         <button class="back-btn" onclick="window.close()">[ ✕ TUTUP WIKI & KEMBALI KE TERMINAL ]</button>
         
-        <h1>📚 WIKI & PANDUAN RESMI SEKTOR NUSANTARA</h1>
-        <p>Dokumentasi taktis operasional penyintas pasca-apokaliptik. Pelajari seluruh parameter mesin simulasi, aturan lumbung, hierarki tier, hingga ancaman varian zombie.</p>
+        <h1>📚 WIKI & PANDUAN TAKTIS RESMI SEKTOR NUSANTARA</h1>
+        <p>Dokumentasi operasional lengkap untuk Komandan Sektor. Pelajari seluruh parameter mesin simulasi, manajemen alokasi pekerja, mekanik penaklukan War Map, hingga mitigasi serangan zombie.</p>
 
         <!-- BAB 1 -->
-        <h2>1. Hierarki Status Sektor & Persyaratan Tier</h2>
-        <p>Desa Anda berkembang seiring bertambahnya jumlah populasi dan kokohnya struktur pertahanan dinding benteng.</p>
+        <h2>1. Dasar Manajemen Desa & Alokasi Pekerja</h2>
+        <p>Sebagai Komandan, Anda bertugas mengelola populasi warga penyintas dan membaginya ke dalam peran taktis:</p>
+        <ul>
+            <li><b>👨‍🌾 Petani Kebun:</b> Memanen Beras secara otomatis (+6 kg Beras per pekerja tiap 30 detik). Setiap warga mengonsumsi 2 kg Beras tiap siklus 30 detik.</li>
+            <li><b>🛡️ Penjaga Benteng (Builder):</b> Memperkuat ketahanan dinding luar saat gelombang serangan zombie tiba. Setiap penjaga menahan kerusakan benteng sebesar +8 HP.</li>
+            <li><b>🪵 Warga Bebas (Pemulung/Scavenger):</b> Warga yang tidak dialokasikan akan otomatis melakukan patroli luar untuk mengumpulkan Kayu secara acak (1–5 unit Kayu tiap 30 detik) serta menurunkan risiko kerentanan pos.</li>
+        </ul>
+
+        <!-- BAB 2 -->
+        <h2>2. Hierarki Tier Sektor & Syarat Kemajuan</h2>
+        <p>Perkembangan pos terdepan Anda terbagi ke dalam 3 Tingkat (Tier). Kenaikan Tier akan membuka akses wilayah penjelajahan dan fitur baru:</p>
         <table>
             <tr>
                 <th>Tier Sektor</th>
-                <th>Syarat Peningkatan</th>
-                <th>Keuntungan & Akses Taktis</th>
+                <th>Syarat Peningkatan (Otomatis)</th>
+                <th>Akses & Keuntungan Taktis</th>
             </tr>
             <tr>
                 <td><b>Tier 1: Desa Darurat</b></td>
                 <td>Status awal permainan</td>
-                <td>Fokus dasar manajemen pangan dan pengumpulan kayu awal.</td>
+                <td>Akses Zona 1 Ekspedisi & Manajemen Dasar Kebun/Benteng.</td>
             </tr>
             <tr>
                 <td><b>Tier 2: Pemukiman Berdikari</b></td>
-                <td>Minimal 10 Populasi & Benteng Lv. 2</td>
-                <td>Membuka akses penjelajahan Zona 2 dan partisipasi penuh di Peta Perang (War Map).</td>
+                <td>Populasi ≥ 10 & Benteng Lv. 2</td>
+                <td>Membuka Ekspedisi Zona 2 & Partisipasi Penuh di <b>Peta Perang (War Map)</b>.</td>
             </tr>
             <tr>
                 <td><b>Tier 3: Zona Aman Mandiri</b></td>
-                <td>Minimal 20 Populasi & Benteng Lv. 4</td>
-                <td>Membuka Zona 3 (Gudang Bulog) dan status tertinggi pertahanan mandiri.</td>
+                <td>Populasi ≥ 20 & Benteng Lv. 4</td>
+                <td>Membuka Ekspedisi Zona 3 (Gudang Bulog) & Status Tertinggi Pertahanan.</td>
             </tr>
         </table>
 
-        <!-- BAB 2 -->
-        <h2>2. Sistem Kapasitas Lumbung (Storage Cap)</h2>
-        <p>Sumber daya berupa <b>Beras (Food)</b> dan <b>Kayu (Wood)</b> tidak bisa disimpan tanpa batas. Kapasitas maksimum gudang dihitung secara otomatis berdasarkan level bangunan dengan rumus:</p>
-        <p style="background: #0c0d0f; padding: 10px; border: 1px solid var(--border-color); color: var(--accent-gold);">
-            <b>Kapasitas Maksimal = (Level Rumah × 300) + (Level Benteng × 200) + 200</b>
-        </p>
+        <!-- BAB 3 -->
+        <h2>3. Kapasitas Penyimpanan Lumbung (Storage Cap)</h2>
+        <p>Stok <b>Beras (Food)</b> dan <b>Kayu (Wood)</b> dibatasi oleh ukuran lumbung desa. Batas kapasitas maksimum dihitung berdasarkan kombinasi level bangunan:</p>
+        
+        <div class="code-box">
+            Kapasitas Maksimal = (Level Rumah × 300) + (Level Benteng × 200) + 200
+        </div>
 
         <table>
             <tr>
-                <th>Level Rumah / Benteng</th>
-                <th>Total Kapasitas Lumbung Sektor</th>
+                <th>Kombinasi Bangunan</th>
+                <th>Kapasitas Maksimal Lumbung</th>
             </tr>
             <tr>
                 <td>Rumah Lv. 1 & Benteng Lv. 1 (Awal)</td>
-                <td><b>700 Unit</b></td>
+                <td><b>700 Unit Logistik</b></td>
             </tr>
             <tr>
                 <td>Rumah Lv. 2 & Benteng Lv. 2</td>
-                <td><b>1.200 Unit</b></td>
+                <td><b>1.200 Unit Logistik</b></td>
             </tr>
             <tr>
                 <td>Rumah Lv. 3 & Benteng Lv. 3</td>
-                <td><b>1.700 Unit</b></td>
+                <td><b>1.700 Unit Logistik</b></td>
             </tr>
             <tr>
                 <td>Rumah Lv. 4 & Benteng Maksimal</td>
-                <td><b>2.400+ Unit</b></td>
+                <td><b>2.400+ Unit Logistik</b></td>
             </tr>
         </table>
-        <p><i>Catatan: Jika sumber daya mencapai batas kapasitas, kelebihan hasil produksi dari panen atau ekspedisi otomatis tidak akan tertampung. Pastikan rutin melakukan upgrade Rumah!</i></p>
-
-        <!-- BAB 3 -->
-        <h2>3. Varian Ancaman Zombie & Dampak Unik Mencekam</h2>
-        <p>Setiap 120 detik, sistem gelombang zombie datang membawa ancaman spesifik yang membutuhkan kesiapan pos penjagaan:</p>
-        <ul>
-            <li>🧟 <b>Zombie Standar:</b> Gerombolan mayat hidup biasa yang menyerang fisik benteng secara berkala. Ditahan menggunakan kombinasi Level Benteng dan jumlah Penjaga.</li>
-            <li>🦣 <b>Zombie Tank (The Breaker):</b> Monster besar dengan hantaman destruktif tinggi. Jika benteng jebol, Tank tidak hanya merusak HP benteng, tetapi langsung <b>meruntuhkan 1 Level bangunan penting (misal: Rumah turun level)</b>!</li>
-            <li>🥷 <b>Zombie Penyusup (The Infiltrator):</b> Bergerak senyap menyelinap saat penjagaan longgar (&lt;2 Penjaga). Jika lolos, mereka <b>menculik 1 warga (populasi)</b> ke zona luar.</li>
-        </ul>
+        <p><i>⚠️ Catatan: Logistik yang melebihi batas lumbung akan hangus. Lakukan upgrade Rumah secara berkala untuk memperluas lumbung!</i></p>
 
         <!-- BAB 4 -->
-        <h2>4. Dinamika 20 Random Event Pop-Up Kilat</h2>
-        <p>Di tengah pengelolaan desa, peristiwa tak terduga akan muncul setiap 3 menit sekali. Komandan memiliki waktu singkat untuk memilih keputusan taktis:</p>
-        <ul>
-            <li><b>Penyusup Panik:</b> Membuka gerbang (+1 warga, benteng -5%) atau menolak.</li>
-            <li><b>Tikus Gudang:</b> Membasmi cepat (-5 beras) atau membiarkan (-20 beras).</li>
-            <li><b>Hujan Asam Korosif:</b> Melapisi pakai 10 kayu atau abaikan (-15% HP benteng).</li>
-            <li><b>Pedagang Gelap:</b> Barter 50 kayu dengan tambahan beras melimpah.</li>
-            <li><b>Wabah Demam Ringan:</b> Karantina warga sementara atau abaikan (-1 populasi).</li>
-            <li><b>Kayu Hanyut Sungai:</b> Mengamankan +30 unit kayu gratis.</li>
-            <li><b>Pemberontakan Pekerja:</b> Memberi bonus 20kg beras atau abaikan.</li>
-            <li><b>Serangan Anjing Liar:</b> Membasmi segera atau merelakan kebun rusak (-10 beras).</li>
-            <li><b>Korsleting Api Unggun:</b> Memadamkan kilat (-5 kayu) atau membiarkan (-20 kayu).</li>
-            <li><b>Pengungsi Membawa Anak:</b> Menerima suaka penambahan +2 populasi.</li>
-            <li><b>Temuan Apotek Liar:</b> Mengamankan stok obat peningkat kesehatan desa.</li>
-            <li><b>Gempa Mikro Lokal:</b> Memeriksa kerusakan atau membiarkan benteng retak (-10%).</li>
-            <li><b>Gotong Royong Warga:</b> Mendapatkan surplus instan +25kg beras.</li>
-            <li><b>Pencurian Malam Hari:</b> Memperketat patroli atau merelakan 15 kayu dicuri.</li>
-            <li><b>Kabut Tebal Misterius:</b> Menghentikan aktivitas luar atau menanggung risiko.</li>
-            <li><b>Burung Gagak Pembawa Pesan:</b> Mensiagakan pertahanan lebih awal.</li>
-            <li><b>Badai Salju Dingin:</b> Membakar 15 kayu untuk penghangat atau abaikan.</li>
-            <li><b>Kerusakan Pagar Samping:</b> Perbaikan kilat pakai 5 kayu.</li>
-            <li><b>Panen Raya Dadakan:</b> Memperoleh rezeki nomplok +40kg beras.</li>
-            <li><b>Suar Darurat Desa Sebelah:</b> Mengirim tim evakuasi penyelamatan (+1 warga).</li>
-        </ul>
+        <h2>4. Mekanik War Map: Dual Cooldown, Degradasi & Zombie Retake</h2>
+        <p>Peta Perang (War Map) adalah tempat seluruh aliansi komandan berjuang menguasai titik-titik sektor Nusantara. Fitur ini menggunakan sistem aturan terbaru:</p>
+        
+        <div class="info-card">
+            <h3 style="color:var(--accent-blue); margin-bottom:4px;">⏱️ SISTEM DUAL COOLDOWN PRIBADI</h3>
+            <ul>
+                <li><b>Sektor Terkunci (Locked / Penaklukan):</b> Cooldown pribadi hanya <b>3 Menit (180 detik)</b>. Didesain cepat agar aliansi bisa sering menyerang untuk mengumpulkan target Poin Kontribusi (misal: 100 PTS).</li>
+                <li><b>Sektor Dikuasai (Unlocked / Farming):</b> Cooldown pribadi <b>15 Menit (900 detik)</b>. Digunakan untuk memanen logistik melimpah (Beras, Kayu, Logam 🔩, Kimia 🧪) sekaligus memperkuat pertahanan sektor.</li>
+            </ul>
+        </div>
+
+        <div class="alert-card">
+            <h3 style="color:var(--accent-red); margin-bottom:4px;">🛡️ MEKANIK DEGRADASI SEKTOR & ZOMBIE RETAKE</h3>
+            <ul>
+                <li><b>Tingkat Pertahanan Sektor (0–100%):</b> Setiap sektor yang sudah dikuasai (*Unlocked*) memiliki durabilitas pertahanan. Durabilitas ini terkikis 3%–9% secara otomatis setiap kali gelombang zombie utama menyerang.</li>
+                <li><b>Patroli & Perbaikan:</b> Mengirim tim ekspedisi ke sektor *Unlocked* akan **memulihkan Durabilitas Sektor sebesar +15%** dan memberikan hasil *farming*.</li>
+                <li><b>Serangan Balik Zombie (Zombie Retake):</b> Jika durabilitas sektor dibiarkan membusuk hingga menyentuh **0%**, sektor tersebut **direbut kembali oleh zombie (kembali TERKUNCI)** dan poin kontribusi di-reset dari awal!</li>
+                <li><b>Jalur Akses Bertingkat (Connected Route):</b> Sektor Level Tinggi (misal: Level 2 atau Level 3) tidak bisa diserang jika sektor di bawahnya belum berhasil dikuasai penuh.</li>
+            </ul>
+        </div>
 
         <!-- BAB 5 -->
-        <h2>5. Aliansi, Donasi, & Logam/Kimia</h2>
-        <p>Logam (🔩) dan Kimia (🧪) adalah material militer tingkat tinggi yang <b>hanya bisa diperoleh melalui Ekspedisi Bersama di Peta Perang (War Map)</b> atau misi aliansi. Gunakan fitur donasi Lumbung Aliansi untuk memperkuat pertahanan bersama rekan sesama komandan di jaringan real-time.</p>
+        <h2>5. Varian Ancaman Zombie & Dampak Kerusakan</h2>
+        <p>Setiap 120 detik, gerombolan zombie akan melancarkan serangan ke benteng utama desa dengan varian acak:</p>
+        <ul>
+            <li>🧟 <b>Zombie Standar:</b> menyerang ketahanan fisik benteng secara konvensional. Kerusakan ditahan oleh kombinasi Level Benteng dan Penjaga.</li>
+            <li>🦣 <b>Zombie Tank (The Breaker):</b> Memiliki daya dorong luar biasa. Jika benteng jebol saat serangan Tank, **Level Rumah warga akan diturunkan (De-upgrade) secara paksa**!</li>
+            <li>🥷 <b>Zombie Penyusup (The Infiltrator):</b> Menyelinap jika pos penjagaan minim (&lt;2 Penjaga). Penyusup akan **menculik 1 Warga (Populasi)** atau mencuri cadangan beras lumbung.</li>
+        </ul>
+
+        <!-- BAB 6 -->
+        <h2>6. Fitur "Pause on Offline" & Firebase Cloud Sync</h2>
+        <p>Game ini dilengkapi dengan sistem perlindungan waktu nyata:</p>
+        <ul>
+            <li><b>Pause On Offline:</b> Ketika Anda menutup browser atau *logout*, simulasi desa Anda akan **dibekukan penuh (di-pause)**. Logistik, populasi, dan benteng tidak akan berkurang saat Anda sedang tidak bermain.</li>
+            <li><b>Cloud Sync Real-Time:</b> Seluruh data tersimpan aman di server Cloud Firebase. Anda bisa berpindah perangkat kapan saja tanpa takut kehilangan progres.</li>
+        </ul>
+
+        <!-- BAB 7 -->
+        <h2>7. Aliansi, Donasi & Material Militer (Logam & Kimia)</h2>
+        <p><b>Logam (🔩)</b> dan <b>Kimia (🧪)</b> adalah komponen tingkat tinggi yang sangat berguna untuk upgrade benteng level lanjut dan misi aliansi. Material ini diperoleh khusus melalui Ekspedisi War Map Sektor Level 2 & 3. Gunakan fitur Donasi Aliansi di Tab Pusat Aliansi untuk saling bertukar logistik dan menyelesaikan Misi Aliansi bersama rekan Komandan lain.</p>
     </div>
 
 </body>
