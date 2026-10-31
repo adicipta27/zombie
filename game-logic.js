@@ -1,4 +1,4 @@
-// game-logic.js - Mesin Utama Simulasi Desa (Full Features + War Map Dual Cooldown & Sector Decay)
+// game-logic.js - Mesin Utama Simulasi Desa (Full Features + War Map Dual Cooldown, Sector Decay & Enlarged UI Font)
 import { 
     auth, 
     db, 
@@ -59,7 +59,7 @@ let currentUserEmail = "";
 let userUid = "";
 let activeEventTimerInterval = null;
 
-// Sistem Batas Kapasitas Gudang (Storage Cap) berdasarkan Level Rumah & Benteng
+// Sistem Batas Kapasitas Gudang (Storage Cap) berdasarkan Level Rumah & Benteng[cite: 2]
 function getStorageCap() {
     return (game.houseLevel * 300) + (game.wallLevel * 200) + 200;
 }
@@ -152,18 +152,17 @@ function syncWarMapData() {
                         level: cloudNode.level !== undefined ? cloudNode.level : defaultNode.level,
                         targetPoints: cloudNode.targetPoints !== undefined ? cloudNode.targetPoints : defaultNode.targetPoints,
                         currentPoints: cloudNode.currentPoints !== undefined ? cloudNode.currentPoints : defaultNode.currentPoints,
-                        health: cloudNode.health !== undefined ? cloudNode.health : 100 // Durabilitas Sektor
+                        health: cloudNode.health !== undefined ? cloudNode.health : 100
                     };
                 }
                 return defaultNode;
             });
 
-            // Mekanisme Degradasi & Zombie Retake di Cloud
             let hasChanges = false;
             warMapNodes.forEach(node => {
                 if (node.status === 'unlocked') {
                     if (node.health === undefined) node.health = 100;
-                    let decay = node.level * 4; // Laju degradasi berdasarkan level
+                    let decay = node.level * 4;
                     node.health = Math.max(0, node.health - decay);
 
                     if (node.health <= 0) {
@@ -647,7 +646,7 @@ function renderPanel() {
 
     if (currentTab === 'village') {
         panel.innerHTML = profileBoxHtml;
-        panel.innerHTML += `<div class="section-title">Alokasi Tenaga Kerja Warga (Kapasitas Lumbung: ${storageCap} Unit)</div>`;
+        panel.innerHTML += `<div class="section-title">Alokasi Tenaga Kerja Warga (Kapasitas Lumbung: ${storageCap} Unit)[cite: 2]</div>`;
         panel.innerHTML += `
             <div class="card-box" style="border-color: var(--accent-blue);">
                 <div class="card-header"><h5>📖 Buku Panduan & Tutorial</h5></div>
@@ -661,7 +660,7 @@ function renderPanel() {
                     <h5>🌾 Kebun Pangan Desa</h5>
                     <span style="color:var(--accent-green);">${game.workers.farm} Pekerja</span>
                 </div>
-                <div class="card-desc">Tiap pekerja menambah +6kg beras per 30 detik.</div>
+                <div class="card-desc">Tiap pekerja menambah +6kg beras per 30 detik[cite: 2].</div>
                 <div class="worker-controls">
                     <button class="btn-ctrl" onclick="adjustWorker('farm', -1); playSFX('click');">-</button>
                     <input type="number" id="inputAmountFarm" class="input-amount" value="1" min="1">
@@ -723,7 +722,7 @@ function renderPanel() {
                     <h5>📍 Zona 3: Gudang Bulog</h5>
                     <span style="color:${z3Unlocked ? 'var(--accent-green)' : 'var(--accent-red)'};">${z3Unlocked ? 'Terbuka' : 'Terkunci (Tier 3 & 150kg Beras)'}</span>
                 </div>
-                <div class="card-desc">Bekal: 20kg Beras. Hasil: Kayu Raksasa & Logistik Super.</div>
+                <div class="card-desc">Bekal: 20kg Beras[cite: 2]. Hasil: Kayu Raksasa & Logistik Super.</div>
                 <button class="btn-action" ${!z3Unlocked || game.expeditionCooldown > 0 ? 'disabled' : ''} onclick="runExpedition(3); playSFX('click');">
                     ${game.expeditionCooldown > 0 ? `Tunggu (${game.expeditionCooldown}s)` : 'Kirim Tim Taktis'}
                 </button>
@@ -736,7 +735,6 @@ function renderPanel() {
         let now = Date.now();
 
         warMapNodes.forEach((node, idx) => {
-            // Cek Syarat Jalur Akses Prasyarat (Connected Route Requirement)
             let isLockedByPrev = false;
             if (idx > 0) {
                 let prevNode = warMapNodes[idx - 1];
@@ -749,7 +747,6 @@ function renderPanel() {
             let statusColor = isUnlocked ? 'var(--accent-green)' : (isLockedByPrev ? 'var(--border-color)' : 'var(--accent-red)');
             let progressPct = isUnlocked ? node.health || 100 : Math.min(100, Math.floor((node.currentPoints / node.targetPoints) * 100));
             
-            // Dual Cooldown Check
             let cooldowns = game.nodeCooldowns || {};
             let cooldownEnd = cooldowns[node.id] || 0;
             let isOnCooldown = now < cooldownEnd;
@@ -757,11 +754,12 @@ function renderPanel() {
 
             let badgeText = isUnlocked ? `Def: ${node.health || 100}%` : (isLockedByPrev ? `Jalur Terkunci` : `Lv.${node.level} (${progressPct}%)`);
 
+            // [PERBAIKAN FONT UKURAN BESAR AGAR MUDAH DIBACA]
             nodesHtml += `
                 <div style="position: absolute; top: ${node.y}%; left: ${node.x}%; transform: translate(-50%, -50%); text-align: center; cursor: pointer;" onclick="openWarMapNodeModal(${node.id}); playSFX('click');">
-                    <div style="width: 28px; height: 28px; background: ${statusColor}; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; border: 1px solid var(--border-color); box-shadow: 0 0 8px rgba(0,0,0,0.8); font-weight:bold;">📍</div>
-                    <span style="font-size: 8px; background: var(--surface-color); border: 1px solid var(--border-color); padding: 2px 4px; color: var(--text-main); white-space: nowrap; display: block; margin-top: 2px;">${node.name}</span>
-                    <span style="font-size: 7.5px; background: #0c0d0f; border: 1px solid var(--border-color); padding: 1px 3px; color: var(--accent-blue); white-space: nowrap; display: block; margin-top: 1px;">${badgeText}</span>
+                    <div style="width: 34px; height: 34px; background: ${statusColor}; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 15px; border: 2px solid var(--border-color); box-shadow: 0 0 12px rgba(0,0,0,0.95); font-weight:bold;">📍</div>
+                    <span style="font-size: 11.5px; font-weight: bold; background: rgba(12, 13, 15, 0.95); border: 1px solid var(--border-accent); padding: 3px 7px; color: var(--text-main); white-space: nowrap; display: block; margin-top: 3px; box-shadow: 0 2px 5px rgba(0,0,0,0.6);">${node.name}</span>
+                    <span style="font-size: 10.5px; font-weight: bold; background: #0c0d0f; border: 1px solid var(--border-accent); padding: 2px 6px; color: var(--accent-blue); white-space: nowrap; display: block; margin-top: 2px;">${badgeText}</span>
                 </div>
             `;
         });
@@ -780,7 +778,7 @@ function renderPanel() {
         }
         panel.innerHTML += `
             ${activeMissionBox}
-            <div style="position: relative; width: 100%; height: 260px; background: url('https://images.unsplash.com/photo-1526778548025-fa2f459cd5c1?auto=format&fit=crop&w=800&q=80') center/cover no-repeat; border-radius: 4px; border: 1px solid var(--border-color); margin-bottom: 12px; overflow:hidden;">
+            <div style="position: relative; width: 100%; height: 280px; background: url('https://images.unsplash.com/photo-1526778548025-fa2f459cd5c1?auto=format&fit=crop&w=800&q=80') center/cover no-repeat; border-radius: 4px; border: 1px solid var(--border-color); margin-bottom: 12px; overflow:hidden;">
                 <div style="position: absolute; inset: 0; background: rgba(12, 13, 15, 0.75);"></div>
                 ${nodesHtml}
             </div>
@@ -816,7 +814,7 @@ function renderPanel() {
         panel.innerHTML += `
             <div class="card-box">
                 <div class="card-header"><h5>🏠 Upgrade Rumah (Lv. ${game.houseLevel})</h5></div>
-                <div class="card-desc">+5 Kapasitas Warga & Kapasitas Lumbung. Biaya: 🪵 ${houseCost} Kayu.</div>
+                <div class="card-desc">+5 Kapasitas Warga & Kapasitas Lumbung[cite: 2]. Biaya: 🪵 ${houseCost} Kayu.</div>
                 <button class="btn-action" style="margin-top:8px;" onclick="upgradeHouse(); playSFX('click');">Upgrade Rumah</button>
             </div>
         `;
@@ -825,7 +823,7 @@ function renderPanel() {
         panel.innerHTML += `
             <div class="card-box">
                 <div class="card-header"><h5>🛡️ Upgrade Benteng (Lv. ${game.wallLevel})</h5></div>
-                <div class="card-desc">Meningkatkan pertahanan. Biaya: 🪵 ${wallCost} Kayu ${metalReq > 0 ? `| 🔩 ${metalReq} Logam` : ''}.</div>
+                <div class="card-desc">Meningkatkan pertahanan. Biaya: 🪵 ${wallCost} Kayu[cite: 2] ${metalReq > 0 ? `| 🔩 ${metalReq} Logam` : ''}.</div>
                 <button class="btn-action" style="border-color:var(--accent-blue); color:var(--accent-blue); margin-top:8px;" ${game.wallLevel >= 4 ? 'disabled' : ''} onclick="upgradeWall(); playSFX('click');">
                     ${game.wallLevel >= 4 ? 'Maksimal (Lv. 4)' : 'Upgrade Benteng'}
                 </button>
@@ -834,7 +832,7 @@ function renderPanel() {
         panel.innerHTML += `
             <div class="card-box">
                 <div class="card-header"><h5>🔨 Perbaiki Benteng</h5></div>
-                <div class="card-desc">Memulihkan +25% Ketahanan (Biaya: 🪵 5 Kayu per tahap).</div>
+                <div class="card-desc">Memulihkan +25% Ketahanan (Biaya: 🪵 5 Kayu per tahap)[cite: 2].</div>
                 <div class="worker-controls" style="margin-top:8px;">
                     <input type="number" id="inputRepairAmount" class="input-amount" value="1" min="1" style="width:60px;">
                     <button class="btn-action" style="border-color:var(--accent-gold); color:var(--accent-gold); width:auto;" onclick="repairWallCustom(); playSFX('click');">Perbaiki</button>
@@ -921,7 +919,6 @@ function getAllianceMissionProgress(reqType) {
     return 0;
 }
 
-// Buka Modal Node War Map dengan Pengecekan Jalur & Dual Cooldown
 window.openWarMapNodeModal = function(nodeId) {
     let nodeIndex = warMapNodes.findIndex(n => n.id === nodeId);
     let node = warMapNodes[nodeIndex];
@@ -930,7 +927,6 @@ window.openWarMapNodeModal = function(nodeId) {
     if (game.tier < 2) return log("❌ Akses War Map membutuhkan minimal Tier 2 (Pemukiman Berdikari)!");
     if (game.warMapActiveMission !== null) return log("❌ Tim Anda sedang dalam misi penjelajahan lain di War Map!");
 
-    // Cek Jalur Akses Prasyarat
     if (nodeIndex > 0) {
         let prevNode = warMapNodes[nodeIndex - 1];
         if (prevNode && prevNode.status !== 'unlocked') {
@@ -959,7 +955,6 @@ window.openWarMapNodeModal = function(nodeId) {
 function startWarMapExpedition(nodeId) {
     game.warMapActiveMission = nodeId;
     let node = warMapNodes.find(n => n.id === nodeId);
-    // Durasi misi: 3 menit untuk Locked, 5 menit untuk Unlocked (atau sesuaikan)
     game.warMapTimer = node.status === 'unlocked' ? 300 : 180; 
     log(`🚀 [WAR MAP] Tim ekspedisi dikirim ke ${node.name}.`);
     saveGameToCloud();
@@ -974,7 +969,6 @@ function finishWarMapExpedition() {
 
     if (!game.nodeCooldowns) game.nodeCooldowns = {};
     
-    // PENERAPAN DUAL COOLDOWN PRIBADI: 3 Menit (180s) jika Locked, 15 Menit (900s) jika Unlocked
     let cooldownDurationMs = (node.status === 'unlocked') ? (15 * 60 * 1000) : (3 * 60 * 1000);
     game.nodeCooldowns[nodeId] = Date.now() + cooldownDurationMs;
 
@@ -984,7 +978,6 @@ function finishWarMapExpedition() {
 
     if (isSuccess) {
         if (node.status === 'unlocked') {
-            // Sektor Unlocked: Dapat Resource + Repair Durabilitas Sektor (+15%)
             node.health = Math.min(100, (node.health || 100) + 15);
             log(`🌾 [FARMING & PATROLI SUKSES] Memanen ${node.name}! +${node.rewardQty} ${node.rewardType.toUpperCase()}. Durabilitas Sektor pulih ke ${node.health}%.`);
             
@@ -997,14 +990,13 @@ function finishWarMapExpedition() {
             set(ref(db, 'allianceStorage'), allianceStorage);
             set(ref(db, 'warMapNodes'), warMapNodes);
         } else {
-            // Sektor Locked: Tambah Poin Penaklukan
             let earnedPoints = node.level * 30;
             node.currentPoints = Math.min(node.targetPoints, node.currentPoints + earnedPoints);
             log(`🏆 [WAR MAP SUKSES] Tim mencetak +${earnedPoints} Poin Kontribusi di ${node.name}! (${node.currentPoints}/${node.targetPoints})`);
 
             if (node.currentPoints >= node.targetPoints) {
                 node.status = 'unlocked';
-                node.health = 100; // Reset ke 100% penuh saat berhasil dikuasai
+                node.health = 100;
                 log(`🎉 [SEKTOR DIKUASAI] Titik ${node.name} resmi dikuasai penuh! Jalur farming terbuka.`);
                 if(node.rewardType === 'food' || node.rewardType === 'wood') {
                     game[node.rewardType] = Math.min(cap, (game[node.rewardType] || 0) + node.rewardQty);
@@ -1124,10 +1116,10 @@ window.upgradeHouse = function() {
         game.wood -= cost;
         game.houseLevel++;
         game.maxPop += 5;
-        log(`🏠 [UPGRADE] Rumah ke Level ${game.houseLevel}! Kapasitas Warga: ${game.maxPop}, Lumbung meluas.`);
+        log(`🏠 [UPGRADE] Rumah ke Level ${game.houseLevel}! Kapasitas Warga: ${game.maxPop}, Lumbung meluas[cite: 2].`);
         updateUI(); renderPanel();
         saveGameToCloud();
-    } else log(`Kayu kurang (Butuh 🪵 ${cost}).`);
+    } else log(`Kayu kurang (Butuh 🪵 ${cost})[cite: 2].`);
 }
 
 window.upgradeWall = function() {
@@ -1138,7 +1130,7 @@ window.upgradeWall = function() {
         if (metalReq > 0) game.metal -= metalReq;
         game.wallLevel++;
         game.wallHealth = 100;
-        log(`🛡️ [UPGRADE] Benteng ditingkatkan ke Level ${game.wallLevel}!`);
+        log(`🛡️ [UPGRADE] Benteng ditingkatkan ke Level ${game.wallLevel}[cite: 2]!`);
         updateUI(); renderPanel();
         saveGameToCloud();
     } else log("Gagal upgrade benteng (Cek Kayu / Logam).");
@@ -1153,10 +1145,10 @@ window.repairWallCustom = function() {
         game.wallHealth = Math.min(100, game.wallHealth + (qty * 25));
         if (!game.stats) game.stats = { totalExpeditions: 0, totalZombiesKilled: 0, totalRepairs: 0 };
         game.stats.totalRepairs++;
-        log(`🔨 [PERBAIKAN] Memperbaiki benteng sebanyak ${qty} tahap (-🪵 ${totalCost} Kayu).`);
+        log(`🔨 [PERBAIKAN] Memperbaiki benteng sebanyak ${qty} tahap (-🪵 ${totalCost} Kayu)[cite: 2].`);
         updateUI(); renderPanel();
         saveGameToCloud();
-    } else log(`Kayu tidak cukup (Butuh 🪵 ${totalCost}).`);
+    } else log(`Kayu tidak cukup (Butuh 🪵 ${totalCost})[cite: 2].`);
 }
 
 function syncAllianceStorage() {
@@ -1321,12 +1313,12 @@ setInterval(() => {
         }
         game.wood = Math.min(cap, game.wood + woodScavenged);
 
-        log(`🌾 [PRODUKSI] Panen +${production}kg, Konsumsi -${consumption}kg.`);
+        log(`🌾 [PRODUKSI] Panen +${production}kg, Konsumsi -${consumption}kg[cite: 2].`);
         if (woodScavenged > 0) log(`🪵 [PEMULUNG] Warga bebas mengumpulkan total +${woodScavenged} Kayu.`);
 
         if (game.pop < game.maxPop && game.food >= 50 && Math.random() < 0.35) {
             game.pop++;
-            log(`👥 [PENGUNGSI] Seorang penyintas baru datang meminta suaka! Populasi kini ${game.pop}.`);
+            log(`👥 [PENGUNGSI] Seorang penyintas baru datang meminta suaka! Populasi kini ${game.pop}[cite: 2].`);
         }
 
         game.timers.production = 30;
@@ -1373,7 +1365,7 @@ setInterval(() => {
             }
         } 
         else {
-            log("🚨 [ZOMBIE] Gelombang mayat hidup standar menyerbu pos penjagaan!");
+            log("🚨 [ZOMBIE] Gelombang mayat hidup standar menyerbu pos penjagaan[cite: 2]!");
             let baseDamage = Math.floor(Math.random() * 20) + 15;
             let wallDefense = (game.wallLevel * 5) + (game.workers.wall * 8);
             let finalDamage = Math.max(5, baseDamage - wallDefense);
