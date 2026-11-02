@@ -1,4 +1,4 @@
-// game-logic.js - Mesin Utama Simulasi Desa (Full Features + 1 Wood = 1% Repair & Alliance Withdraw)
+// game-logic.js - Mesin Utama Simulasi Desa (Full Features + 1 Wood = 1% Repair & Alliance Withdraw & onDisconnect fix)
 import { 
     auth, 
     db, 
@@ -12,7 +12,8 @@ import {
     update,
     onValue,
     push,
-    remove
+    remove,
+    onDisconnect
 } from "./firebase-config.js";
 
 import { governmentMissions, allianceMissions, initialWarMapNodes } from "./game-config.js";
@@ -29,7 +30,7 @@ let game = {
     wallLevel: 1,
     tier: 1,
     workers: { farm: 0, wall: 0 },
-    timers: { production: 30, zombie: 120, event: 180 },
+    timers: { production: 30, zombie: 120, event: 210 }, // Diubah ke 210s agar tidak sering tabrakan dengan zombie
     currentMissionIndex: 0,
     currentAllianceMissionIndex: 0,
     expeditionCooldown: 0,
@@ -113,15 +114,27 @@ function loadGameFromCloud(uid) {
     });
 }
 
+// PERBAIKAN BUG STATUS ONLINE DENGAN onDisconnect()
 function updateUserStatus(status) {
     if (!userUid) return;
     const username = currentUserEmail.split('@')[0];
     const userStatusRef = ref(db, `status/${userUid}`);
-    set(userStatusRef, {
+    
+    let statusData = {
         name: username,
         state: status,
         lastActive: Date.now()
-    });
+    };
+
+    if (status === "online") {
+        onDisconnect(userStatusRef).set({
+            name: username,
+            state: "offline",
+            lastActive: Date.now()
+        });
+    }
+
+    set(userStatusRef, statusData);
 }
 
 function monitorOnlinePlayers() {
@@ -260,7 +273,7 @@ window.verifyAndExecuteReset = async function() {
         wallLevel: 1,
         tier: 1,
         workers: { farm: 0, wall: 0 },
-        timers: { production: 30, zombie: 120, event: 180 },
+        timers: { production: 30, zombie: 120, event: 210 },
         currentMissionIndex: 0,
         currentAllianceMissionIndex: 0,
         expeditionCooldown: 0,
@@ -643,7 +656,7 @@ function renderPanel() {
 
     if (currentTab === 'village') {
         panel.innerHTML = profileBoxHtml;
-        panel.innerHTML += `<div class="section-title">Alokasi Tenaga Kerja Warga (Kapasitas Lumbung: ${storageCap} Unit)[cite: 2]</div>`;
+        panel.innerHTML += `<div class="section-title">Alokasi Tenaga Kerja Warga (Kapasitas Lumbung: ${storageCap} Unit)</div>`;
         panel.innerHTML += `
             <div class="card-box" style="border-color: var(--accent-blue);">
                 <div class="card-header"><h5>📖 Buku Panduan & Tutorial</h5></div>
@@ -657,7 +670,7 @@ function renderPanel() {
                     <h5>🌾 Kebun Pangan Desa</h5>
                     <span style="color:var(--accent-green);">${game.workers.farm} Pekerja</span>
                 </div>
-                <div class="card-desc">Tiap pekerja menambah +6kg beras per 30 detik[cite: 2].</div>
+                <div class="card-desc">Tiap pekerja menambah +6kg beras per 30 detik.</div>
                 <div class="worker-controls">
                     <button class="btn-ctrl" onclick="adjustWorker('farm', -1); playSFX('click');">-</button>
                     <input type="number" id="inputAmountFarm" class="input-amount" value="1" min="1">
@@ -719,7 +732,7 @@ function renderPanel() {
                     <h5>📍 Zona 3: Gudang Bulog</h5>
                     <span style="color:${z3Unlocked ? 'var(--accent-green)' : 'var(--accent-red)'};">${z3Unlocked ? 'Terbuka' : 'Terkunci (Tier 3 & 150kg Beras)'}</span>
                 </div>
-                <div class="card-desc">Bekal: 20kg Beras[cite: 2]. Hasil: Kayu Raksasa & Logistik Super.</div>
+                <div class="card-desc">Bekal: 20kg Beras. Hasil: Kayu Raksasa & Logistik Super.</div>
                 <button class="btn-action" ${!z3Unlocked || game.expeditionCooldown > 0 ? 'disabled' : ''} onclick="runExpedition(3); playSFX('click');">
                     ${game.expeditionCooldown > 0 ? `Tunggu (${game.expeditionCooldown}s)` : 'Kirim Tim Taktis'}
                 </button>
@@ -782,7 +795,7 @@ function renderPanel() {
         `;
     } else if (currentTab === 'missions') {
         panel.innerHTML = profileBoxHtml;
-        panel.innerHTML += `<div class="section-title">Papan Misi Operasi Pemerintah (50 Tahap)</div>`;
+        panel.innerHTML += `<div class="section-title">Papan Misi Operasi Pemerintah (${governmentMissions.length} Tahap)</div>`;
         if (game.currentMissionIndex < governmentMissions.length) {
             let m = governmentMissions[game.currentMissionIndex];
             let currentVal = getMissionProgress(m.reqType);
@@ -801,7 +814,7 @@ function renderPanel() {
                 </div>
             `;
         } else {
-            panel.innerHTML += `<div class="card-box"><p style="font-size:12px; color:var(--accent-green);">🏆 Seluruh 50 Misi Pemerintah Selesai! Anda Legenda Nusantara!</p></div>`;
+            panel.innerHTML += `<div class="card-box"><p style="font-size:12px; color:var(--accent-green);">🏆 Seluruh Misi Pemerintah Selesai! Anda Legenda Nusantara!</p></div>`;
         }
     } else if (currentTab === 'upgrade') {
         panel.innerHTML = profileBoxHtml;
@@ -810,7 +823,7 @@ function renderPanel() {
         panel.innerHTML += `
             <div class="card-box">
                 <div class="card-header"><h5>🏠 Upgrade Rumah (Lv. ${game.houseLevel})</h5></div>
-                <div class="card-desc">+5 Kapasitas Warga & Kapasitas Lumbung[cite: 2]. Biaya: 🪵 ${houseCost} Kayu.</div>
+                <div class="card-desc">+5 Kapasitas Warga & Kapasitas Lumbung. Biaya: 🪵 ${houseCost} Kayu.</div>
                 <button class="btn-action" style="margin-top:8px;" onclick="upgradeHouse(); playSFX('click');">Upgrade Rumah</button>
             </div>
         `;
@@ -819,13 +832,12 @@ function renderPanel() {
         panel.innerHTML += `
             <div class="card-box">
                 <div class="card-header"><h5>🛡️ Upgrade Benteng (Lv. ${game.wallLevel})</h5></div>
-                <div class="card-desc">Meningkatkan pertahanan. Biaya: 🪵 ${wallCost} Kayu[cite: 2] ${metalReq > 0 ? `| 🔩 ${metalReq} Logam` : ''}.</div>
+                <div class="card-desc">Meningkatkan pertahanan. Biaya: 🪵 ${wallCost} Kayu ${metalReq > 0 ? `| 🔩 ${metalReq} Logam` : ''}.</div>
                 <button class="btn-action" style="border-color:var(--accent-blue); color:var(--accent-blue); margin-top:8px;" ${game.wallLevel >= 4 ? 'disabled' : ''} onclick="upgradeWall(); playSFX('click');">
                     ${game.wallLevel >= 4 ? 'Maksimal (Lv. 4)' : 'Upgrade Benteng'}
                 </button>
             </div>
         `;
-        // [UPDATE BIAYA BENTENG: 1 KAYU = 1%]
         panel.innerHTML += `
             <div class="card-box">
                 <div class="card-header"><h5>🔨 Perbaiki Benteng</h5></div>
@@ -879,7 +891,6 @@ function renderPanel() {
                 </div>
             `;
         }
-        // [KONTROL MULTI-FUNGSI LOGISTIK ALIANSI: DONASI & PINJAM/TARIK LOGISTIK]
         panel.innerHTML += `
             <div class="card-box">
                 <div class="card-header"><h5>📦 Kelola Logistik Aliansi (Donasi & Pinjam)</h5></div>
@@ -1115,10 +1126,10 @@ window.upgradeHouse = function() {
         game.wood -= cost;
         game.houseLevel++;
         game.maxPop += 5;
-        log(`🏠 [UPGRADE] Rumah ke Level ${game.houseLevel}! Kapasitas Warga: ${game.maxPop}, Lumbung meluas[cite: 2].`);
+        log(`🏠 [UPGRADE] Rumah ke Level ${game.houseLevel}! Kapasitas Warga: ${game.maxPop}, Lumbung meluas.`);
         updateUI(); renderPanel();
         saveGameToCloud();
-    } else log(`Kayu kurang (Butuh 🪵 ${cost})[cite: 2].`);
+    } else log(`Kayu kurang (Butuh 🪵 ${cost}).`);
 }
 
 window.upgradeWall = function() {
@@ -1129,13 +1140,12 @@ window.upgradeWall = function() {
         if (metalReq > 0) game.metal -= metalReq;
         game.wallLevel++;
         game.wallHealth = 100;
-        log(`🛡️ [UPGRADE] Benteng ditingkatkan ke Level ${game.wallLevel}[cite: 2]!`);
+        log(`🛡️ [UPGRADE] Benteng ditingkatkan ke Level ${game.wallLevel}!`);
         updateUI(); renderPanel();
         saveGameToCloud();
     } else log("Gagal upgrade benteng (Cek Kayu / Logam).");
 }
 
-// [PEMBARUAN PERBAIKAN BENTENG: 1 KAYU = 1%]
 window.repairWallCustom = function() {
     let requestedPercent = parseInt(document.getElementById('inputRepairAmount').value) || 1;
     if (requestedPercent <= 0) return log("❌ Jumlah perbaikan minimal 1%.");
@@ -1144,7 +1154,7 @@ window.repairWallCustom = function() {
 
     let neededPercent = 100 - game.wallHealth;
     let actualPercentToRepair = Math.min(requestedPercent, neededPercent);
-    let totalWoodCost = actualPercentToRepair; // 1 Kayu = 1%
+    let totalWoodCost = actualPercentToRepair;
 
     if (game.wood >= totalWoodCost) {
         game.wood -= totalWoodCost;
@@ -1172,7 +1182,6 @@ function syncAllianceStorage() {
     });
 }
 
-// DONASI LOGISTIK KE ALIANSI
 window.donateToAlliance = function() {
     let type = document.getElementById('donateType').value;
     let qty = parseInt(document.getElementById('donateQty').value) || 20;
@@ -1197,7 +1206,6 @@ window.donateToAlliance = function() {
     log(`📦 Berhasil mendonasikan ${qty} ${type} ke Aliansi.`);
 }
 
-// [FITUR BARU: AMBIL / TARIK LOGISTIK DARI ALIANSI]
 window.withdrawFromAlliance = function() {
     let type = document.getElementById('donateType').value;
     let qty = parseInt(document.getElementById('donateQty').value) || 20;
@@ -1340,7 +1348,7 @@ setInterval(() => {
     game.timers.event--;
     if (game.timers.event <= 0) {
         triggerRandomEvent();
-        game.timers.event = 180;
+        game.timers.event = 210; // Direset ke 210s
     }
 
     game.timers.production--;
@@ -1365,12 +1373,12 @@ setInterval(() => {
         }
         game.wood = Math.min(cap, game.wood + woodScavenged);
 
-        log(`🌾 [PRODUKSI] Panen +${production}kg, Konsumsi -${consumption}kg[cite: 2].`);
+        log(`🌾 [PRODUKSI] Panen +${production}kg, Konsumsi -${consumption}kg.`);
         if (woodScavenged > 0) log(`🪵 [PEMULUNG] Warga bebas mengumpulkan total +${woodScavenged} Kayu.`);
 
         if (game.pop < game.maxPop && game.food >= 50 && Math.random() < 0.35) {
             game.pop++;
-            log(`👥 [PENGUNGSI] Seorang penyintas baru datang meminta suaka! Populasi kini ${game.pop}[cite: 2].`);
+            log(`👥 [PENGUNGSI] Seorang penyintas baru datang meminta suaka! Populasi kini ${game.pop}.`);
         }
 
         game.timers.production = 30;
@@ -1417,7 +1425,7 @@ setInterval(() => {
             }
         } 
         else {
-            log("🚨 [ZOMBIE] Gelombang mayat hidup standar menyerbu pos penjagaan[cite: 2]!");
+            log("🚨 [ZOMBIE] Gelombang mayat hidup standar menyerbu pos penjagaan!");
             let baseDamage = Math.floor(Math.random() * 20) + 15;
             let wallDefense = (game.wallLevel * 5) + (game.workers.wall * 8);
             let finalDamage = Math.max(5, baseDamage - wallDefense);
