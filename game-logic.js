@@ -1,4 +1,4 @@
-// game-logic.js - Mesin Utama Simulasi Desa (Full Features + 1 Wood = 1% Repair & Alliance Withdraw & onDisconnect fix)
+// game-logic.js - Mesin Utama Simulasi Desa (Full Features + 1 Wood = 1% Repair & Alliance Withdraw)
 import { 
     auth, 
     db, 
@@ -12,8 +12,7 @@ import {
     update,
     onValue,
     push,
-    remove,
-    onDisconnect
+    remove
 } from "./firebase-config.js";
 
 import { governmentMissions, allianceMissions, initialWarMapNodes } from "./game-config.js";
@@ -30,7 +29,7 @@ let game = {
     wallLevel: 1,
     tier: 1,
     workers: { farm: 0, wall: 0 },
-    timers: { production: 30, zombie: 120, event: 210 }, // Diubah ke 210s agar tidak sering tabrakan dengan zombie
+    timers: { production: 30, zombie: 120, event: 210 },
     currentMissionIndex: 0,
     currentAllianceMissionIndex: 0,
     expeditionCooldown: 0,
@@ -114,7 +113,6 @@ function loadGameFromCloud(uid) {
     });
 }
 
-// PERBAIKAN BUG STATUS ONLINE DENGAN onDisconnect()
 function updateUserStatus(status) {
     if (!userUid) return;
     const username = currentUserEmail.split('@')[0];
@@ -125,14 +123,6 @@ function updateUserStatus(status) {
         state: status,
         lastActive: Date.now()
     };
-
-    if (status === "online") {
-        onDisconnect(userStatusRef).set({
-            name: username,
-            state: "offline",
-            lastActive: Date.now()
-        });
-    }
 
     set(userStatusRef, statusData);
 }
@@ -1348,7 +1338,7 @@ setInterval(() => {
     game.timers.event--;
     if (game.timers.event <= 0) {
         triggerRandomEvent();
-        game.timers.event = 210; // Direset ke 210s
+        game.timers.event = 210;
     }
 
     game.timers.production--;
